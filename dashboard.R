@@ -111,7 +111,7 @@ ui <- dashboardPage(
               plotlyOutput("chart_hire_rate", height="320px"))
         ),
         fluidRow(
-          box(width=12, title="Source Utilization Full Report", status="default",
+          box(width=12, title="Source Utilization Full Report", status="primary",
               DTOutput("tbl_sources"))
         )
       ),
@@ -127,7 +127,7 @@ ui <- dashboardPage(
               plotlyOutput("chart_ttf_over", height="320px"))
         ),
         fluidRow(
-          box(width=12, title="Department TTF Summary", status="default",
+          box(width=12, title="Department TTF Summary", status="primary",
               DTOutput("tbl_ttf"))
         )
       ),
@@ -142,7 +142,10 @@ ui <- dashboardPage(
               h4("EEO 4/5ths Rule"),
               p("The 4/5ths rule flags potential adverse impact when a group's
                 hire rate is less than 80% of the highest-performing group's
-                hire rate. This is a standard EEO compliance metric."),
+                hire rate. This is a standard EEO compliance metric. Because small
+                groups produce noisy ratios, a group is flagged here only when the
+                ratio is below 0.80 AND a two-proportion test is significant after a
+                Holm correction for testing every group at once."),
               hr(),
               p(strong("Formula:"),
                 br(), "Adverse Impact Ratio = Group Hire Rate ÷ Highest Group Hire Rate"),
@@ -162,7 +165,7 @@ ui <- dashboardPage(
               plotlyOutput("chart_eeo_gender", height="300px"))
         ),
         fluidRow(
-          box(width=12, title="EEO Race/Ethnicity Data Table", status="default",
+          box(width=12, title="EEO Race/Ethnicity Data Table", status="primary",
               DTOutput("tbl_eeo"))
         )
       ),
@@ -181,7 +184,7 @@ ui <- dashboardPage(
       tabItem("data",
         fluidRow(
           box(width=12, title="ATS Records (NYCAPS/SmartRecruiter format)",
-              status="default",
+              status="primary",
               DTOutput("tbl_ats"))
         )
       )
@@ -356,9 +359,11 @@ server <- function(input, output, session) {
   })
   output$tbl_eeo <- renderDT({
     d$eeo_race %>%
-      mutate(hire_rate=sprintf("%.1f%%",hire_rate),
+      mutate(hire_rate=sprintf("%.2f%%",hire_rate),
              pct_of_apps=sprintf("%.1f%%",pct_of_apps),
              pct_of_hires=sprintf("%.1f%%",pct_of_hires),
+             p_value=ifelse(is.na(p_value), "reference", sprintf("%.3f", p_value)),
+             p_holm=ifelse(is.na(p_holm), "reference", sprintf("%.3f", p_holm)),
              flag_adverse_impact=ifelse(flag_adverse_impact,"⚠️ Flag","✅ OK")) %>%
       rename(`Adverse Impact`=flag_adverse_impact) %>%
       datatable(rownames=FALSE)

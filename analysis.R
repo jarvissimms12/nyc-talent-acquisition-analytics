@@ -261,45 +261,66 @@ ttf_dept %>% head(3) %>%
 cat("\n[3/5] Running EEO / diversity analysis...\n")
 
 # Applicant flow by race/ethnicity
+# Selection rate = hires / applicants. (Computed from n_hired: writing
+# `hired = sum(hired)` first and then `mean(hired)` would average the sum.)
 eeo_race_flow <- ats_df %>%
   group_by(eeo_race) %>%
   summarise(
     applicants  = sum(applicants),
-    hired       = sum(hired),
-    hire_rate   = round(mean(hired)*100, 1),
-    pct_of_apps = round(sum(applicants)/sum(ats_df$applicants)*100, 1),
-    pct_of_hires= round(sum(hired)/sum(ats_df$hired)*100, 1),
+    n_hired     = sum(hired),
     .groups = "drop"
   ) %>%
+  mutate(
+    hired        = n_hired,
+    hire_rate    = round(n_hired / applicants * 100, 3),
+    pct_of_apps  = round(applicants / sum(applicants) * 100, 1),
+    pct_of_hires = round(n_hired / sum(n_hired) * 100, 1)
+  ) %>%
+  select(-n_hired) %>%
   arrange(desc(applicants))
 
 # Gender flow
 eeo_gender_flow <- ats_df %>%
   group_by(eeo_gender) %>%
-  summarise(
-    applicants  = sum(applicants),
-    hired       = sum(hired),
-    hire_rate   = round(mean(hired)*100, 1),
-    .groups = "drop"
-  )
+  summarise(applicants = sum(applicants), n_hired = sum(hired), .groups = "drop") %>%
+  mutate(hired = n_hired, hire_rate = round(n_hired / applicants * 100, 3)) %>%
+  select(-n_hired)
 
-# Adverse impact ratio (selection rate by race vs majority group)
-# Standard EEO 4/5ths rule
-majority_hire_rate <- eeo_race_flow %>%
-  filter(pct_of_apps == max(pct_of_apps)) %>%
-  pull(hire_rate)
-
+# Adverse impact: Uniform Guidelines (29 CFR 1607.4D) 4/5ths rule.
+# Each group's selection rate is compared with the HIGHEST group's rate.
+# Two traps make the raw rule flag groups when nothing is wrong:
+#   * the reference is the luckiest of 8 noisy groups (often a small one)
+#   * 7 comparisons are run at once
+# So a group is flagged only when the ratio is < 0.80 AND a two-proportion
+# test is significant after a Holm correction for the 7 comparisons.
+ref <- eeo_race_flow %>% slice_max(hire_rate, n = 1, with_ties = FALSE)
 eeo_race_flow <- eeo_race_flow %>%
+  rowwise() %>%
   mutate(
-    adverse_impact_ratio = round(hire_rate / majority_hire_rate, 3),
-    flag_adverse_impact  = adverse_impact_ratio < 0.80
+    adverse_impact_ratio = round(hire_rate / ref$hire_rate, 3),
+    p_value = if (eeo_race == ref$eeo_race) NA_real_ else
+      suppressWarnings(prop.test(c(hired, ref$hired), c(applicants, ref$applicants))$p.value),
+  ) %>%
+  ungroup() %>%
+  mutate(
+    p_holm = p.adjust(p_value, method = "holm"),
+    flag_adverse_impact = !is.na(p_holm) & adverse_impact_ratio < 0.80 & p_holm < 0.05,
+    reference_group = ref$eeo_race
   )
+
+# Overall test: are hires independent of race/ethnicity at all?
+eeo_chisq <- chisq.test(rbind(eeo_race_flow$hired,
+                              eeo_race_flow$applicants - eeo_race_flow$hired))
 
 write_csv(eeo_race_flow,   "data/eeo_race_flow.csv")
 write_csv(eeo_gender_flow, "data/eeo_gender_flow.csv")
 
 flagged <- sum(eeo_race_flow$flag_adverse_impact, na.rm=TRUE)
-cat(sprintf("  Groups flagged for adverse impact (< 0.80 ratio): %d\n", flagged))
+cat(sprintf("  Reference group (highest selection rate): %s, %.2f%%\n", ref$eeo_race, ref$hire_rate))
+cat(sprintf("  Groups below 0.80 ratio: %d; flagged (also Holm p < 0.05): %d\n",
+    sum(eeo_race_flow$adverse_impact_ratio < 0.80), flagged))
+cat(sprintf("  Overall chi-square, hires x race: X2 = %.2f, df = %d, p = %.3f\n",
+    eeo_chisq$statistic, eeo_chisq$parameter, eeo_chisq$p.value))
 
 
 # ── 4. BOTTLENECK & GAP ANALYSIS ─────────────────────────────
@@ -332,7 +353,7 @@ recs <- tibble(
     sprintf("Biggest funnel drop at '%s' stage (%.1f%% conversion)",
             bottleneck$stage, bottleneck$conversion_from_prev),
     sprintf("%d departments exceed 60-day TTF target",   nrow(slow_depts)),
-    sprintf("%d groups flagged for adverse impact (EEO)", flagged),
+    sprintf("%d groups flagged for adverse impact (ratio < 0.80 and Holm-adjusted p < 0.05)", flagged),
     sprintf("'%s' has lowest 12-mo retention (%.1f%%)",
             source_report$source[which.min(source_report$retention_12mo)],
             min(source_report$retention_12mo)),
