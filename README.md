@@ -1,10 +1,12 @@
-# 🏥 NYC DOHMH — Talent Acquisition Analytics (R)
+# 🏥 Public-Sector Talent Acquisition Analytics (R)
 
 [![R](https://img.shields.io/badge/R-4.x-276DC3?logo=r)](https://r-project.org)
 [![Shiny](https://img.shields.io/badge/Shiny-Dashboard-4C72B0)](https://shiny.posit.co)
 [![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-shinyapps.io-blue)](https://jarvissimms12.shinyapps.io/dohmh-talent)
 
-Talent acquisition analytics platform built entirely in **R**, designed specifically around the duties listed in the NYC DOHMH Talent Acquisition Data Analyst job posting (March 2026). Analyzes 1,400 requisitions across 10 DOHMH departments to produce all the recurring reports described in the role — time-to-fill, source utilization, applicant flow, offer acceptance rates, EEO adverse impact ratios, and workforce gap identification.
+> **Data note:** all 1,400 requisitions, applicants and EEO records in this project are **simulated** (`set.seed(42)` in `analysis.R`). Department names are modeled on DOHMH's structure, but nothing here is real DOHMH data or reflects its actual hiring. For analysis of **real** NYC government job postings and payroll, see [state-of-nyc](https://github.com/jarvissimms12/state-of-nyc).
+
+Talent acquisition analytics platform built entirely in **R**, designed around the duties listed in the NYC DOHMH Talent Acquisition Data Analyst job posting (March 2026). Simulates 1,400 requisitions across 10 departments to produce all the recurring reports described in the role — time-to-fill, source utilization, applicant flow, offer acceptance rates, EEO adverse impact ratios, and workforce gap identification.
 
 ---
 

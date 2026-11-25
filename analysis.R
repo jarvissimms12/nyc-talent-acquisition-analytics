@@ -1,6 +1,9 @@
 # ============================================================
-# analysis.R  —  NYC DOHMH: Talent Acquisition Data Analyst
+# analysis.R  —  Talent Acquisition Analytics (SYNTHETIC DATA)
 # ============================================================
+# NOTE: all requisition, applicant and EEO records below are SIMULATED
+# (set.seed(42)). Nothing here is real DOHMH data.
+#
 # Built specifically around the duties listed in the DOHMH
 # Talent Acquisition Data Analyst job posting (March 2026):
 #
@@ -31,7 +34,7 @@ dir.create("data",   showWarnings = FALSE)
 dir.create("assets", showWarnings = FALSE)
 
 cat("================================================================\n")
-cat("  NYC DOHMH — Talent Acquisition Analytics  (R)\n")
+cat("  Talent Acquisition Analytics  (R)  —  synthetic data\n")
 cat("  Author: Jarvis Simms | github.com/jarvissimms12\n")
 cat("================================================================\n\n")
 
